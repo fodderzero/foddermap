@@ -38,7 +38,7 @@ foddermap/
 
 ## Philosophy
 
-This project is intentionally being builts with a "learn by building" approach. Core functionality is written from scratch where possible and practical to deepen understanding, then pragmatic decisions are made about when to use well-chosen third-party libraries.
+This project is intentionally being built with a "learn by building" approach. Core functionality is written from scratch where possible and practical to deepen understanding, then pragmatic decisions are made about when to use well-chosen third-party libraries.
 
 ## License
 
