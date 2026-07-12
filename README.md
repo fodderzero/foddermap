@@ -25,15 +25,15 @@ python foddermap.py -t example.com
 
 ## Project Structure
 
-foddermap/
-|---foddermap.py        # Main entry point
-|---core/               # Shared utilities
-|---modules/
-    |---passive/        # Passive recon modules (Phase 1)
-|---utils/              # Helper functions
-|---output/             # Generated results and reports
-|---wordlists/          # Wordlists for later use
-|---README.md
+foddermap/  
+|---foddermap.py        # Main entry point  
+|---core/               # Shared utilities  
+|---modules/  
+    |---passive/        # Passive recon modules (Phase 1)  
+|---utils/              # Helper functions  
+|---output/             # Generated results and reports  
+|---wordlists/          # Wordlists for later use  
+|---README.md  
 |---requirements.txt
 
 ## Philosophy
