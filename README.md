@@ -23,19 +23,6 @@ FodderMap is being built to map the external attack surface of orgainizations st
 python foddermap.py -t example.com
 ```
 
-## Project Structure
-
-foddermap/  
-|---foddermap.py        # Main entry point  
-|---core/               # Shared utilities  
-|---modules/  
-    |---passive/        # Passive recon modules (Phase 1)  
-|---utils/              # Helper functions  
-|---output/             # Generated results and reports  
-|---wordlists/          # Wordlists for later use  
-|---README.md  
-|---requirements.txt
-
 ## Philosophy
 
 This project is intentionally being built with a "learn by building" approach. Core functionality is written from scratch where possible and practical to deepen understanding, then pragmatic decisions are made about when to use well-chosen third-party libraries.
