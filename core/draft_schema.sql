@@ -2,6 +2,25 @@
 -- FodderMap brain.db Schema
 -- =====================================================
 
+-- *****************************************************
+-- ********************Summary**************************
+-- 
+-- Primary Tables:
+-- **** projects
+-- **** scans
+-- **** assets
+-- **** ips
+-- **** ip_mappings (ips to assets / technically a junction)
+-- **** relationships
+-- **** dns_records
+-- **** endpoints
+--
+-- Junction Tables:
+-- **** scan_assets (scans to assets)
+-- *****************************************************
+
+
+
 -- Projects (lightweight metadata for self-documentation)
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY,
