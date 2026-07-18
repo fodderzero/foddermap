@@ -88,22 +88,21 @@ CREATE TABLE ip_mappings (
 );
 
 -- Create reverse index to complement the clustered index
-CREATE INDEX idx_ip_asset_mapping ON ip_mappings(ip_id, asset_id);
-CREATE INDEX idx_asset_ip_current ON ip_mappings(is_current);
+CREATE INDEX idx_ip_asset_mapping_reverse ON ip_mappings(ip_id, is_current, asset_id);
 
 -- Relationships (directed edges - logical focus)
 CREATE TABLE relationships (
-    id INTEGER PRIMARY KEY,
     from_asset_id INTEGER NOT NULL,
     to_asset_id INTEGER NOT NULL,
+    PRIMARY KEY (from_asset_id, to_asset_id),
     type TEXT NOT NULL,                     -- 'subdomain', 'cname', 'a_record', etc.
     source JSON,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
     is_active BOOLEAN DEFAULT 1,
     metadata JSON,
-    FOREIGN KEY (from_asset_id) REFERENCES assets(id),
-    FOREIGN KEY (to_asset_id) REFERENCES assets(id)
+    CONSTRAINT relationships_from_asset_id FOREIGN KEY (from_asset_id) REFERENCES assets(id) ON DELETE CASCADE,
+    CONSTRAINT relationships_to_asset_id FOREIGN KEY (to_asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
 CREATE INDEX idx_relationships_from ON relationships(from_asset_id);
