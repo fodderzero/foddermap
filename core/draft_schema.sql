@@ -11,12 +11,15 @@
 -- **** assets
 -- **** ips
 -- **** ip_mappings (ips to assets / technically a junction)
--- **** relationships
+-- **** relationships (assets to assets)
 -- **** dns_records
 -- **** endpoints
 --
 -- Junction Tables:
 -- **** scan_assets (scans to assets)
+-- **** scan_ips (scans to ips)
+-- **** scan_ip_mappings (scans to ip mappings)
+-- **** scan_relationships (scans to relationships)
 -- *****************************************************
 
 
@@ -58,7 +61,7 @@ CREATE TABLE assets (
 );
 
 CREATE INDEX idx_assets_type ON assets(type);
-CREATE INDEX idx_assets_name ON assets(name);
+CREATE INDEX idx_assets_name ON assets(name, is_active);
 CREATE INDEX idx_assets_active ON assets(is_active);
 
 -- IP Addresses (separated from main assets)
@@ -71,9 +74,9 @@ CREATE TABLE ips (
     metadata JSON
 );
 
-CREATE INDEX idx_ips_address ON ips(address);
+CREATE INDEX idx_ips_address ON ips(address, is_active);
 
--- Asset ↔ IP Mappings
+-- Asset <-> IP Mappings
 CREATE TABLE ip_mappings (
     asset_id INTEGER NOT NULL,
     ip_id INTEGER NOT NULL,
@@ -81,7 +84,7 @@ CREATE TABLE ip_mappings (
     source JSON,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
-    is_current BOOLEAN DEFAULT 1,
+    is_current BOOLEAN DEFAULT 1 NOT NULL,
     metadata JSON,
     CONSTRAINT fk_ip_mappings_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
     CONSTRAINT fk_ip_mappings_ip_id FOREIGN KEY (ip_id) REFERENCES ips(id) ON DELETE CASCADE
@@ -99,22 +102,21 @@ CREATE TABLE relationships (
     source JSON,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
-    is_active BOOLEAN DEFAULT 1,
+    is_active BOOLEAN DEFAULT 1 NOT NULL,
     metadata JSON,
     CONSTRAINT relationships_from_asset_id FOREIGN KEY (from_asset_id) REFERENCES assets(id) ON DELETE CASCADE,
     CONSTRAINT relationships_to_asset_id FOREIGN KEY (to_asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_relationships_from ON relationships(from_asset_id);
-CREATE INDEX idx_relationships_to ON relationships(to_asset_id);
-CREATE INDEX idx_relationships_type ON relationships(type);
-CREATE INDEX idx_relationships_active ON relationships(is_active);
+-- Create reverse index
+CREATE INDEX idx_relationships_to_asset_id_reverse ON relationships(to_asset_id, is_active, from_asset_id);
+CREATE INDEX idx_relationships_type ON relationships(type, is_active, from_asset_id, to_asset_id);
 
 -- DNS Records
 CREATE TABLE dns_records (
     id INTEGER PRIMARY KEY,
     asset_id INTEGER NOT NULL,
-    record_type TEXT NOT NULL,
+    record_type TEXT NOT NULL,          -- A, CNAME, etc.
     value TEXT NOT NULL,
     priority INTEGER,
     ttl INTEGER,
@@ -127,11 +129,10 @@ CREATE TABLE dns_records (
 CREATE INDEX idx_dns_records_asset ON dns_records(asset_id);
 CREATE INDEX idx_dns_records_type ON dns_records(record_type);
 
--- Endpoints (where real value lives)
 CREATE TABLE endpoints (
-    id INTEGER PRIMARY KEY,
     asset_id INTEGER NOT NULL,
     path TEXT NOT NULL,
+    PRIMARY KEY (asset_id, path),
     status_code INTEGER,
     page_type TEXT,
     priority TEXT DEFAULT 'none',           -- 'none', 'low', 'medium', 'high', 'severe'
@@ -143,21 +144,56 @@ CREATE TABLE endpoints (
     is_active BOOLEAN DEFAULT 1,
     source JSON,
     metadata JSON,
-    FOREIGN KEY (asset_id) REFERENCES assets(id)
+    CONSTRAINT fk_endpoints_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_endpoints_asset ON endpoints(asset_id);
-CREATE INDEX idx_endpoints_path ON endpoints(path);
-CREATE INDEX idx_endpoints_status ON endpoints(status_code);
-CREATE INDEX idx_endpoints_priority ON endpoints(priority);
+CREATE INDEX idx_endpoints_path ON endpoints(path, is_active, asset_id);
+CREATE INDEX idx_endpoints_status ON endpoints(status_code, is_active, asset_id);
+CREATE INDEX idx_endpoints_priority ON endpoints(priority, is_active, asset_id);
+
+
+-- *****************Junction Tables*********************
 
 CREATE TABLE scan_assets (
-    scan_id INT UNSIGNED NOT NULL,
-    asset_id INT UNSIGNED NOT NULL,
+    scan_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
     PRIMARY KEY (scan_id, asset_id),        -- Composite primary key
     CONSTRAINT fk_scan_assets_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
     CONSTRAINT fk_scan_assets_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
 -- Create reverse index to complement the clustered index
-CREATE INDEX idx_assets_scas ON scan_assets(asset_id, scan_id);
+CREATE INDEX idx_scan_assets ON scan_assets(asset_id, scan_id);
+
+CREATE TABLE scan_ips (
+    scan_id INTEGER NOT NULL,
+    ip_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, ip_id),
+    CONSTRAINT fk_scan_ips_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_ips_ip_id FOREIGN KEY (ip_id) REFERENCES ips(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_scan_ips ON scan_ips(ip_id, scan_id);
+
+CREATE TABLE scan_ip_mappings (
+    scan_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
+    ip_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, asset_id, ip_id),
+    CONSTRAINT fk_scan_ip_mappings_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_ip_mappings_ip_map_id FOREIGN KEY (asset_id, ip_id) REFERENCES ip_mappings(asset_id, ip_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_scan_ip_mappings_reverse ON scan_ip_mappings (asset_id, ip_id, scan_id);
+
+CREATE TABLE scan_relationships (
+    scan_id INTEGER NOT NULL, 
+    from_asset_id INTEGER NOT NULL, 
+    to_asset_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, from_asset_id, to_asset_id),
+    CONSTRAINT fk_scan_relationships_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_relationships_rel_id FOREIGN KEY (from_asset_id, to_asset_id) REFERENCES relationships(from_asset_id, to_asset_id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_scan_relationships_reverse ON scan_relationships (from_asset_id, to_asset_id, scan_id);
+
