@@ -2,7 +2,6 @@
 -- FodderMap brain.db Schema
 -- =====================================================
 
--- *****************************************************
 -- ********************Summary**************************
 -- 
 -- Primary Tables:
@@ -20,6 +19,8 @@
 -- **** scan_ips (scans to ips)
 -- **** scan_ip_mappings (scans to ip mappings)
 -- **** scan_relationships (scans to relationships)
+-- **** scan_dns_records (scans to dns records)
+-- **** scan_endpoints (scans to endpoints)
 -- *****************************************************
 
 
@@ -27,7 +28,7 @@
 -- Projects (lightweight metadata for self-documentation)
 CREATE TABLE projects (
     id INTEGER PRIMARY KEY,
-    name TEXT UNIQUE NOT NULL,
+    project_name TEXT UNIQUE NOT NULL,
     created_at TEXT NOT NULL,
     last_updated TEXT NOT NULL,
     metadata JSON
@@ -36,45 +37,45 @@ CREATE TABLE projects (
 -- Scans (track individual scan executions)
 CREATE TABLE scans (
     id INTEGER PRIMARY KEY,
-    scan_id TEXT UNIQUE NOT NULL,           -- e.g. 'scan_20260716_001'
+    scan_name TEXT UNIQUE NOT NULL,           -- e.g. 'scan_20260716_001'
     scan_type TEXT,                         -- 'passive', 'active', 'full'
-    status TEXT,                            -- 'running', 'completed', 'failed'
+    scan_status TEXT,                            -- 'running', 'completed', 'failed'
     started_at TEXT NOT NULL,
     completed_at TEXT,
-    target TEXT,
+    scan_target TEXT,
     metadata JSON
 );
 
-CREATE INDEX idx_scans_scan_id ON scans(scan_id);
+CREATE INDEX idx_scans_scan_id ON scans(scan_name);
 
 -- Assets (logical nodes - domains, subdomains, endpoints, etc.)
 CREATE TABLE assets (
     id INTEGER PRIMARY KEY,
-    type TEXT NOT NULL,                     -- 'domain', 'subdomain', 'endpoint', etc.
-    name TEXT NOT NULL,
+    asset_type TEXT NOT NULL,                     -- 'domain', 'subdomain', 'endpoint', etc.
+    asset_name TEXT NOT NULL,
     source JSON,                            -- Methods/tools that discovered this asset
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
     is_active BOOLEAN DEFAULT 1,
     metadata JSON,
-    UNIQUE(type, name)
+    UNIQUE(asset_type, asset_name)
 );
 
-CREATE INDEX idx_assets_type ON assets(type);
-CREATE INDEX idx_assets_name ON assets(name, is_active);
+CREATE INDEX idx_assets_type ON assets(asset_type);
+CREATE INDEX idx_assets_name ON assets(asset_name, is_active);
 CREATE INDEX idx_assets_active ON assets(is_active);
 
 -- IP Addresses (separated from main assets)
 CREATE TABLE ips (
     id INTEGER PRIMARY KEY,
-    address TEXT UNIQUE NOT NULL,
+    ip_address TEXT NOT NULL UNIQUE,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
     is_active BOOLEAN DEFAULT 1,
     metadata JSON
 );
 
-CREATE INDEX idx_ips_address ON ips(address, is_active);
+CREATE INDEX idx_ips_address ON ips(ip_address, is_active);
 
 -- Asset <-> IP Mappings
 CREATE TABLE ip_mappings (
@@ -126,13 +127,13 @@ CREATE TABLE dns_records (
     FOREIGN KEY (asset_id) REFERENCES assets(id)
 );
 
-CREATE INDEX idx_dns_records_asset ON dns_records(asset_id);
-CREATE INDEX idx_dns_records_type ON dns_records(record_type);
+CREATE INDEX idx_dns_records_asset ON dns_records(asset_id, record_type);
+CREATE INDEX idx_dns_records_type ON dns_records(record_type, asset_id);
 
 CREATE TABLE endpoints (
     asset_id INTEGER NOT NULL,
-    path TEXT NOT NULL,
-    PRIMARY KEY (asset_id, path),
+    path_name TEXT NOT NULL UNIQUE,
+    PRIMARY KEY (asset_id, path_name),
     status_code INTEGER,
     page_type TEXT,
     priority TEXT DEFAULT 'none',           -- 'none', 'low', 'medium', 'high', 'severe'
@@ -147,7 +148,7 @@ CREATE TABLE endpoints (
     CONSTRAINT fk_endpoints_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_endpoints_path ON endpoints(path, is_active, asset_id);
+CREATE INDEX idx_endpoints_path ON endpoints(path_name, is_active, asset_id);
 CREATE INDEX idx_endpoints_status ON endpoints(status_code, is_active, asset_id);
 CREATE INDEX idx_endpoints_priority ON endpoints(priority, is_active, asset_id);
 
@@ -197,3 +198,23 @@ CREATE TABLE scan_relationships (
 
 CREATE INDEX idx_scan_relationships_reverse ON scan_relationships (from_asset_id, to_asset_id, scan_id);
 
+CREATE TABLE scan_dns_records (
+    scan_id INTEGER NOT NULL, 
+    dns_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, dns_id),
+    CONSTRAINT fk_scan_dns_records_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_dns_records_dns_id FOREIGN KEY (dns_id) REFERENCES dns_records(id) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_scan_dns_records_reverse ON scan_dns_records (dns_id, scan_id);
+
+CREATE TABLE scan_endpoints (
+    scan_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
+    path_name TEXT NOT NULL UNIQUE,
+    PRIMARY KEY (scan_id, asset_id, path_name),
+    CONSTRAINT fk_scan_endpoints_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_endpoints_end_id FOREIGN KEY (asset_id, path_name) REFERENCES endpoints(asset_id, path_name) ON DELETE CASCADE
+);
+
+CREATE INDEX idx_scan_endpoints_reverse ON scan_endpoints(asset_id, path_name, scan_id);
