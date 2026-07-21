@@ -1,0 +1,31 @@
+-- =====================================================
+-- FodderMap brain.db Draft Schema
+-- version 2
+-- Started: July 21, 2026
+-- =====================================================
+--
+-- ********************Summary**************************
+-- 
+-- Log key project metadata
+-- **** project_data
+--
+-- Node Tables:
+-- **** scans (history nodes)
+-- **** assets (nodes)
+-- **** ips (nodes)
+--
+-- Edge Tables:
+-- **** ip_mappings (ips to assets / technically a junction)
+-- **** relationships (assets to assets)
+--
+-- Hybrid Node/Edge Tables
+-- **** dns_records
+-- **** endpoints
+--
+-- Junction Tables:
+-- **** scan_assets (scans to assets)
+-- **** scan_ip_mappings (scans to ip mappings)
+-- **** scan_relationships (scans to relationships)
+--
+-- *****************************************************
+
