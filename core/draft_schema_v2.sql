@@ -101,7 +101,7 @@ CREATE INDEX idx_ip_mappings_reverse ON ip_mappings(ip_id, is_active, asset_id);
 CREATE TABLE relationships (
     from_asset_id INTEGER NOT NULL,
     to_asset_id INTEGER NOT NULL,
-    rel_type TEXT NOT NULL,         -- i.e. "subdomain"
+    type TEXT NOT NULL,         -- i.e. "subdomain"
     source JSON,
     first_seen TEXT NOT NULL,
     last_seen TEXT NOT NULL,
@@ -114,11 +114,15 @@ CREATE TABLE relationships (
 
 -- Reverse index
 CREATE INDEX idx_relationships_reverse ON relationships(to_asset_id, is_active, from_asset_id);
-CREATE INDEX idx_relationships_type ON relationships(rel_type, is_active);
+CREATE INDEX idx_relationships_type ON relationships(type, is_active);
 
 -- DNS Records
 CREATE TABLE dns_records (
     id INTEGER PRIMARY KEY,
     asset_id INTEGER NOT NULL,      -- The target domain
+    record_type TEXT NOT NULL,      -- 'A', 'CNAME', etc.
+    value TEXT NOT NULL,            -- The raw string value
+    ttl INTEGER,
+    priority INTEGER,
     
 );
