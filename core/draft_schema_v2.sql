@@ -19,8 +19,8 @@
 -- **** relationships [done] (assets to assets)
 --
 -- Hybrid Node/Edge Tables
--- **** dns_records [working]
--- **** endpoints
+-- **** dns_records [done]
+-- **** endpoints [working]
 --
 -- Junction Tables:
 -- **** scan_assets (scans to assets)
@@ -57,8 +57,8 @@ CREATE TABLE assets (
     asset_type TEXT NOT NULL,       -- 'domain', 'subdomain', 'endpoint', etc.
     asset_name TEXT NOT NULL,
     source JSON,                    -- Methods/tools that discovered this asset
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
+    first_seen TEXT NOT NULL,       -- ISO 8601 string
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
     is_active BOOLEAN DEFAULT 1,
     metadata JSON,
     UNIQUE(asset_type, asset_name)
@@ -72,8 +72,8 @@ CREATE INDEX idx_assets_active ON assets(is_active);
 CREATE TABLE ips (
     id INTEGER PRIMARY KEY
     ip_address TEXT NOT NULL UNIQUE,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
+    first_seen TEXT NOT NULL,       -- ISO 8601 string
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
     is_active BOOLEAN DEFAULT 1,
     metadata JSON
 );
@@ -84,8 +84,8 @@ CREATE INDEX idx_ips_address ON ips(ip_address, is_active);
 CREATE TABLE ip_mappings (
     asset_id INTEGER NOT NULL,
     ip_id INTEGER NOT NULL,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
+    first_seen TEXT NOT NULL,       -- ISO 8601 string
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
     last_scan_id INTEGER NOT NULL,  -- Which scan most recently verified this link
     source JSON,                    -- Which tool found this link
     is_active BOOLEAN DEFAULT 1,
@@ -101,15 +101,15 @@ CREATE INDEX idx_ip_mappings_reverse ON ip_mappings(ip_id, is_active, asset_id);
 CREATE TABLE relationships (
     from_asset_id INTEGER NOT NULL,
     to_asset_id INTEGER NOT NULL,
-    type TEXT NOT NULL,         -- i.e. "subdomain"
+    type TEXT NOT NULL,             -- i.e. "subdomain"
     source JSON,
-    first_seen TEXT NOT NULL,
-    last_seen TEXT NOT NULL,
+    first_seen TEXT NOT NULL,       -- ISO 8601 string   
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
     is_active BOOLEAN DEFAULT 1 NOT NULL,
     metadata JSON,
     PRIMARY KEY (from_asset_id, to_asset_id)
     CONSTRAINT fk_relationships_from_asset_id FOREIGN KEY (from_asset_id) REFERENCES assets(id) ON DELETE CASCADE,
-    CONSTRAINT fk_relationships_to_asset_id FOREIGN KEY (to_asset_id) REFERENCES assets(id)
+    CONSTRAINT fk_relationships_to_asset_id FOREIGN KEY (to_asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
 
 -- Reverse index
@@ -124,5 +124,26 @@ CREATE TABLE dns_records (
     value TEXT NOT NULL,            -- The raw string value
     ttl INTEGER,
     priority INTEGER,
-    
+    first_seen TEXT NOT NULL,       -- ISO 8601 string
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
+    is_current BOOLEAN DEFAULT 1 NOT NULL,      -- 1 if active, 0 if historical
+    CONSTRAINT fk_dns_records_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+-- Quickly reference current dns records
+CREATE INDEX idx_dns_records_current ON dns_records(asset_id, record_type, value) WHERE is_current = 1;
+
+-- Endpoints (path, parameters, api's, etc.)
+CREATE TABLE endpoints (
+    id INTEGER PRIMARY KEY,
+    asset_id INTEGER NOT NULL,      -- domain
+    method TEXT NOT NULL,           -- 'GET', 'POST', 'PUT', etc.
+    path TEXT NOT NULL,             -- Raw path string (e.g., '/v1/users/login')
+    status_code INTEGER NOT NULL,   -- 200, 403, 404, etc.
+    content_type TEXT,              -- 'application/json', 'text/html'
+    response_hash TEXT,             -- MD5/SHA256 hash of the header/body to track shifts
+    first_seen TEXT NOT NULL,       -- ISO 8601 string
+    last_seen TEXT NOT NULL,        -- ISO 8601 string
+    is_current BOOLEAN DEFAULT 1 NOT NULL,
+    CONSTRAINT fk_endpoints_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
