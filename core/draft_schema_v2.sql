@@ -7,20 +7,20 @@
 -- ********************Summary**************************
 -- 
 -- Log key project metadata
--- **** project_data [done]
+-- **** project_data 
 --
 -- Node Tables:
--- **** scans (history nodes) [done]
--- **** assets (nodes) [done]
--- **** ips (nodes) [done]
+-- **** scans (history nodes) 
+-- **** assets (nodes) 
+-- **** ips (nodes) 
 --
 -- Edge Tables:
--- **** ip_mappings [done] (ips to assets / technically a junction)
--- **** relationships [done] (assets to assets)
+-- **** ip_mappings (ips to assets / technically a junction)
+-- **** relationships (assets to assets)
 --
 -- Hybrid Node/Edge Tables
--- **** dns_records [done]
--- **** endpoints [working]
+-- **** dns_records
+-- **** endpoints
 --
 -- Junction Tables:
 -- **** scan_assets (scans to assets)
@@ -151,7 +151,48 @@ CREATE TABLE endpoints (
 );
 
 -- Index for the Python State Machine Delta Check
-CREATE INDEX idx_endpoints_current_state ON endpoints(asset_id, method, path) WHERE is_current = 1;
+CREATE INDEX idx_endpoints_current_state ON endpoints(asset_id, method, base_path, sub_path) WHERE is_current = 1;
 
 -- Forensic Time Engine
 CREATE INDEX idx_endpoints_time_bounds ON endpoints(first_seen, last_seen);
+
+-- Base path lookup
+CREATE INDEX idx_endpoints_lookup ON endpoints(asset_id, method, base_path) WHERE is_current = 1;
+
+-- Scans <-> Assets Junction
+CREATE TABLE scan_assets (
+    scan_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, asset_id),
+    CONSTRAINT fk_scan_assets_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_assets_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
+);
+
+-- Reverse index
+CREATE INDEX idx_scan_assets_reverse ON scan_assets(asset_id, scan_id);
+
+-- Scans <-> IP Mappings Junction
+CREATE TABLE scan_ip_mappings (
+    scan_id INTEGER NOT NULL,
+    asset_id INTEGER NOT NULL,
+    ip_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, asset_id, ip_id),
+    CONSTRAINT fk_scan_ip_mappings_ip_map_id FOREIGN KEY (asset_id, ip_id) REFERENCES ip_mappings(asset_id, ip_id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_ip_mappings_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
+);
+
+-- Reverse index
+CREATE INDEX idx_scan_ip_mappings ON scan_ip_mappings(asset_id, ip_id, scan_id);
+
+-- Scans <-> Relationships Junction
+CREATE TABLE scan_relationships (
+    scan_id INTEGER NOT NULL,
+    from_asset_id INTEGER NOT NULL,
+    to_asset_id INTEGER NOT NULL,
+    PRIMARY KEY (scan_id, from_asset_id, to_asset_id),
+    CONSTRAINT fk_scan_relationships_scan_id FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE,
+    CONSTRAINT fk_scan_relationships_rel_id FOREIGN KEY (from_asset_id, to_asset_id) REFERENCES relationships(from_asset_id, to_asset_id) ON DELETE CASCADE
+);
+
+-- Reverse index
+CREATE INDEX idx_scan_relationships_reverse ON scan_relationships(from_asset_id, to_asset_id, scan_id);
