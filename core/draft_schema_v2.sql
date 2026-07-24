@@ -131,14 +131,16 @@ CREATE TABLE dns_records (
 );
 
 -- Quickly reference current dns records
-CREATE INDEX idx_dns_records_current ON dns_records(asset_id, record_type, value) WHERE is_current = 1;
+CREATE INDEX idx_dns_records_current_state ON dns_records(asset_id, record_type, value) WHERE is_current = 1;
 
 -- Endpoints (path, parameters, api's, etc.)
 CREATE TABLE endpoints (
     id INTEGER PRIMARY KEY,
     asset_id INTEGER NOT NULL,      -- domain
     method TEXT NOT NULL,           -- 'GET', 'POST', 'PUT', etc.
-    path TEXT NOT NULL,             -- Raw path string (e.g., '/v1/users/login')
+    base_path TEXT NOT NULL,        -- Indexable base route (e.g., '/users')
+    sub_path TEXT,                  -- The exact dynamic suffix/ID (e.g., '9999' or 'profile')
+    query_params TEXT,              -- Optional: '?debug=true&admin=1'
     status_code INTEGER NOT NULL,   -- 200, 403, 404, etc.
     content_type TEXT,              -- 'application/json', 'text/html'
     response_hash TEXT,             -- MD5/SHA256 hash of the header/body to track shifts
@@ -147,3 +149,9 @@ CREATE TABLE endpoints (
     is_current BOOLEAN DEFAULT 1 NOT NULL,
     CONSTRAINT fk_endpoints_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
+
+-- Index for the Python State Machine Delta Check
+CREATE INDEX idx_endpoints_current_state ON endpoints(asset_id, method, path) WHERE is_current = 1;
+
+-- Forensic Time Engine
+CREATE INDEX idx_endpoints_time_bounds ON endpoints(first_seen, last_seen);
