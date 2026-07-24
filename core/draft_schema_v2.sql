@@ -71,7 +71,7 @@ CREATE INDEX idx_assets_active ON assets(is_active);
 
 -- IP Addresses (separated from main assets)
 CREATE TABLE ips (
-    id INTEGER PRIMARY KEY
+    id INTEGER PRIMARY KEY,
     ip_address TEXT NOT NULL UNIQUE,
     first_seen TEXT NOT NULL,       -- ISO 8601 string
     last_seen TEXT NOT NULL,        -- ISO 8601 string
@@ -90,9 +90,10 @@ CREATE TABLE ip_mappings (
     last_scan_id INTEGER NOT NULL,  -- Which scan most recently verified this link
     source JSON,                    -- Which tool found this link
     is_active BOOLEAN DEFAULT 1,
-    PRIMARY KEY (asset_id, ip_id)
+    PRIMARY KEY (asset_id, ip_id),
     CONSTRAINT fk_ip_mappings_asset_id FOREIGN KEY (asset_id) REFERENCES assets(id) ON DELETE CASCADE,
-    CONSTRAINT fk_ip_mappings_ip_id FOREIGN KEY (ip_id) REFERENCES ips(id) ON DELETE CASCADE
+    CONSTRAINT fk_ip_mappings_ip_id FOREIGN KEY (ip_id) REFERENCES ips(id) ON DELETE CASCADE,
+    CONSTRAINT fk_ip_mappings_last_scan_id FOREIGN KEY (last_scan_id) REFERENCES scans(id) ON DELETE CASCADE
 );
 
 -- Reverse index
@@ -108,7 +109,7 @@ CREATE TABLE relationships (
     last_seen TEXT NOT NULL,        -- ISO 8601 string
     is_active BOOLEAN DEFAULT 1 NOT NULL,
     metadata JSON,
-    PRIMARY KEY (from_asset_id, to_asset_id)
+    PRIMARY KEY (from_asset_id, to_asset_id),
     CONSTRAINT fk_relationships_from_asset_id FOREIGN KEY (from_asset_id) REFERENCES assets(id) ON DELETE CASCADE,
     CONSTRAINT fk_relationships_to_asset_id FOREIGN KEY (to_asset_id) REFERENCES assets(id) ON DELETE CASCADE
 );
