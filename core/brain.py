@@ -25,3 +25,15 @@ def get_db_path (project_name: str) -> Path:
     Example: get_db_path("myproject") -> data/bullish.db
     """
     return DATA_DIR / f"{project_name}.db"
+
+def get_connection (db_path: Path) -> sqlite3.Connection:
+    """
+    Open a connection to the given database with the 
+    default FodderMap settings
+    """
+    conn = sqlite3.connect(db_path)
+    conn.execute("PRAGMA journal_mode = WAL;")
+    conn.execute("PRAGMA synchronous = NORMAL;")
+    conn.execute("PRAGMA foreign_keys = ON;")
+    conn.execute("PRAGMA busy_timeout = 5000;")
+    return conn 
