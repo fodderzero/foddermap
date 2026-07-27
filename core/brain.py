@@ -18,3 +18,10 @@ SCHEMA_PATH = Path(__file__).parent / "brain_schema.sql"
 
 # Where all project databases will live
 DATA_DIR = Path("data")
+
+def get_db_path (project_name: str) -> Path:
+    """
+    Return the full path to a project's brain database
+    Example: get_db_path("myproject") -> data/bullish.db
+    """
+    return DATA_DIR / f"{project_name}.db"
