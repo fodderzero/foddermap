@@ -37,3 +37,6 @@ def get_connection (db_path: Path) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON;")
     conn.execute("PRAGMA busy_timeout = 5000;")
     return conn 
+
+def init_brain (project_name: str, force: bool = False) -> Path:
+    
