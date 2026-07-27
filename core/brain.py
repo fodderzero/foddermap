@@ -39,4 +39,23 @@ def get_connection (db_path: Path) -> sqlite3.Connection:
     return conn 
 
 def init_brain (project_name: str, force: bool = False) -> Path:
-    
+    """
+    Create a new brain database for the given project
+
+    - Creates data/ if it doesn't exist
+    - Refuses to overwrite an existing brain unless force=True
+    - Applies the schema
+    - Writes initial project metadata
+    """
+
+    DATA_DIR.mkdir(exist_ok=True)
+
+    db_path = get_db_path(project_name)
+
+    if db_path.exists() and not force:
+        raise FileExistsError (
+            f"Brain already exists at {db_path}"
+            "Use --force to overwrite"
+        )
+
+    return db_path
